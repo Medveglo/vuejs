@@ -1,67 +1,175 @@
 <html>
 	<header>
 		<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+		<!-- import CSS -->
+		<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+		<!-- import JavaScript -->
+		<script src="https://unpkg.com/element-ui/lib/index.js"></script>
 	</header>
 	<body>
 		<div id="vue">
-			<course-student></course-student>
+			<courses-list></courses-list>
 		</div>
 		<script>
-			Vue.component('course-student',{
+		Vue.component('courses-list',{
 				data: function () {
                     return {
-                        course: {
+                        courses: [{
 							id: 0,
 							theme: 'Тема',
 							name: 'Название',
 							description: 'Описание',
-							dateStart: Date(),
+							dateStart: '',
 							link: 'Ссылка на видео',
 							students:[{
 								name: '',
 								last: '',
 								second: ''
 							}]
-						},
+						}],
+						showDetail: false,
 						showForm: false,
-						student:{
-							last: '',
+						course:{
+							theme: '',
 							name: '',
-							second: ''
-						}
+							description: '',
+							dateStart: '',
+							link: '',
+						},
+						detail: {}
                     }
-                }, 
+                },
 				methods:{
-					addStudent: function addStudent(){
-						let st = {};
-						for (let key in this.student){
-							st[key] = this.student[key];
-						}
-						this.course.students.push(st);
-						this.setLocalStud(this.course.students);
-						this.clearForm();
-					},
-					deleteStudent: function deleteStudent(index){
-						this.course.students.splice(index, 1);
-						this.setLocalStud(this.course.students);
-					},
 					clearForm: function clearForm(){
 						this.showForm = false;
-						for (let key in this.student){
-							this.student[key] = '';
+						for (let key in this.course){
+							this.course[key] = '';
 						}
 					},
+					addCourse: function addCourse(){
+						let st = {};
+						for (let key in this.course){
+							st[key] = this.course[key];
+						}
+						
+						st['id'] = (new Date()).getTime();
+						st['students'] = [];
+						
+						this.courses.push(st);
+						this.setLocalStud(this.courses);
+						this.clearForm();
+					},
 					setLocalStud: function setLocalStud(val){
-						localStorage.setItem('Students', JSON.stringify(val));
+						localStorage.setItem('courses', JSON.stringify(val));
+					},
+					showDetailFunc(row, column, event){
+						this.showDetail = true;
+						this.detail = row;
+					},
+					delStud(e){
+						this.courses.forEach(function(curs){
+							if (curs.id === e.id){
+								curs.students.splice(e.index, 1);
+							}
+						});
+						
+						
+						this.setLocalStud(this.courses);
+					},
+					addStud(e){
+						this.courses.forEach(function(curs){
+							if (curs.id === e.id){
+								curs.students.push(e.stud);
+							}
+						});
+					
+						this.setLocalStud(this.courses);
 					}
 				},
 				created: function(){
-				console.log(JSON.parse(localStorage.getItem('Students')));
-					if(localStorage.getItem('Students')){
-						this.course.students = JSON.parse(localStorage.getItem('Students'));
+					if(localStorage.getItem('courses')){
+						this.courses = JSON.parse(localStorage.getItem('courses'));
 					} else {
-						this.course.students = [];
+						this.courses = [];
 					}
+				},
+				template: `
+					<div>
+						<el-table 
+							:data="courses" 
+							@row-click="showDetailFunc"
+							empty-text="Нишиша">
+							<el-table-column
+								type="index"
+								width="50">
+							</el-table-column>
+							<el-table-column
+								prop="dateStart"
+								label="Дата старта"
+								width="180">
+							</el-table-column>
+							<el-table-column
+								prop="name"
+								label="Название"
+								width="180">
+							</el-table-column>
+							<el-table-column
+								label="Количество студентов"
+								width="180">
+								<template slot-scope="scope">
+									{{scope.row.students.length}}
+								</template>
+							</el-table-column>
+						</el-table>
+						
+						<el-dialog :visible.sync="showDetail">
+							<course-detail :course="detail" @add-stud="addStud" @del-stud="delStud"></course-detail>
+							<button @click="showDetail = false">Закрыть</button>
+						</el-dialog>						
+						
+						<button v-show="!showForm" @click="showForm = true">Добавить</button>
+						
+						<el-dialog :visible.sync="showForm">
+							<div> Тема: <input v-model="course.theme"></input></div>
+							<div> Название: <input v-model="course.name"></input></div>
+							<div> Описание: <input v-model="course.description"></input></div>
+							<div> Дата старта: <el-date-picker
+												  v-model="course.dateStart"
+												  type="date"
+												  format="dd.MM.yyyy"
+												  value-format="dd.MM.yyyy"
+												  placeholder="Выберите дату">
+												</el-date-picker>
+							</div>
+							<div> Ссылка на видео: <input v-model="course.link"></input></div>
+							
+							<button @click="addCourse">Добавить</button>
+							<button @click="clearForm">Отменить</button>
+						</el-dialog>
+					</div>
+				`
+			});
+			
+			Vue.component('course-detail',{
+				data: function () {
+                    return {
+						showForm: false,
+                    }
+                },
+				props:{
+					course: {}
+				},
+				methods:{
+					addUser: function addUser(stud){
+						if(stud){
+							this.$emit('add-stud', {id: this.course.id, stud: stud});
+						}
+						
+						this.showForm = false;
+					},
+					deleteUser: function deleteUser(index){
+						this.$emit('del-stud', {id: this.course.id, index: index});
+					},
 				},
 				template: `
 					<div>
@@ -71,23 +179,71 @@
 						<div> Описание: <input v-model="course.description"></input></div>
 						<div> ДатаНачала: <input v-model="course.dateStart"></input></div>
 						<div> Ссылка на видео: <input v-model="course.link"></input></div>
-						<div> Студенты: 
-							<ul>
-								<li v-for="(stud, index) in course.students">
-									{{stud.last + ' ' + stud.name + ' ' + stud.second}}
-									<button @click="deleteStudent(index)">Удалить</button>
-								</li>
-							</ul>
-						</div>
 						
-						<button v-show="!showForm" @click="showForm = true">Добавить</button>
-						<div v-show="showForm">
+						<list-student :students="course.students" @delete-stud="deleteUser"></list-student>
+						
+						<button v-show="!showForm" @click="showForm = true">Добавить студента</button>
+						
+						
+						<add-student v-show="showForm" @add-user="addUser"></add-student>
+
+					</div>
+				`
+			});
+			
+			Vue.component('list-student',{
+				props:{
+					students: Array
+				},
+				template: `
+					<ul>
+						<li v-for="(stud, index) in students">
+							{{stud.last + ' ' + stud.name + ' ' + stud.second}}
+							<button @click="$emit('delete-stud', index)">Удалить</button>
+						</li>
+					</ul>
+				`
+			});
+			
+			Vue.component('add-student',{
+				data: function () {
+                    return {
+						student:{
+							last: '',
+							name: '',
+							second: ''
+						}
+                    }
+                },
+				methods:{
+					addStudent: function addStudent(){
+						let stud = {};
+						
+						for (let key in this.student){
+							stud[key] = this.student[key];
+						}
+					
+						this.$emit('add-user', stud);
+						this.clearForm();
+					},
+					close: function close(){
+						this.$emit('add-user', null);
+						this.clearForm();
+					},
+					clearForm: function clearForm(){
+						for (let key in this.student){
+							this.student[key] = '';
+						}
+					},
+				},
+				template: `
+					<div>
+						
 							<div> Фамилия: <input v-model="student.last"></input></div>
 							<div> Имя: <input v-model="student.name"></input></div>
 							<div> Отчество: <input v-model="student.second"></input></div>
-							<button @click="addStudent">Добавить</button>
-							<button @click="clearForm">Отменить</button>
-						</div>
+							<button @click="addStudent">Добавить студента</button>
+							<button @click="close">Отменить</button>
 					</div>
 				`
 			});
